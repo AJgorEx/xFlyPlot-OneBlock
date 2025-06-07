@@ -1,0 +1,19 @@
+# System
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Gradle
+.gradle/
+build/
+out/
+
+# Minecraft server
+server/
+paper/
+*.jar
+*.log

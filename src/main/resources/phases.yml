@@ -1,0 +1,67 @@
+basic:
+  blocks: 25
+  blocksList:
+    - dirt
+    - grass_block
+    - oak_log
+    - oak_leaves
+    - stone
+    - coal_ore
+
+farm:
+  blocks: 40
+  blocksList:
+    - wheat
+    - carrot
+    - potato
+    - pumpkin
+    - melon
+    - hay_block
+    - farmland
+
+cave:
+  blocks: 60
+  blocksList:
+    - cobblestone
+    - stone
+    - andesite
+    - granite
+    - diorite
+    - iron_ore
+    - mossy_cobblestone
+    - dripstone_block
+    - tuff
+
+nether:
+  blocks: 80
+  blocksList:
+    - netherrack
+    - soul_sand
+    - nether_bricks
+    - quartz_ore
+    - glowstone
+    - magma_block
+    - crimson_stem
+    - warped_nylium
+
+end:
+  blocks: 100
+  blocksList:
+    - end_stone
+    - purpur_block
+    - chorus_plant
+    - obsidian
+    - crying_obsidian
+    - shulker_box
+
+legendary:
+  blocks: 200
+  blocksList:
+    - diamond_block
+    - emerald_block
+    - ancient_debris
+    - netherite_block
+    - beacon
+    - enchantment_table
+    - spawner
+    - dragon_egg

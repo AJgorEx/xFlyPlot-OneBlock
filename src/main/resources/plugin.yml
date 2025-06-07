@@ -1,0 +1,15 @@
+name: xFlyPlot
+version: 1.0
+main: com.AJgorEx.xFlyPlot.Main
+api-version: 1.21
+author: AJgorEx
+description: Zaawansowany plugin OneBlock z własnym światem, bossbarem i fazami
+commands:
+  oneblock:
+    description: Tworzy wyspę OneBlock lub teleportuje na nią
+    usage: /oneblock
+    aliases: [ob, startblock]
+permissions:
+  oneblock.use:
+    description: Pozwala na używanie komendy /oneblock
+    default: true
