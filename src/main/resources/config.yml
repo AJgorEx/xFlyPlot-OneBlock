@@ -1,0 +1,3 @@
+# Default configuration for xFlyPlot OneBlock plugin
+# Height at which the generator block is created
+height: 64

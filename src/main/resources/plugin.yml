@@ -6,10 +6,13 @@ author: AJgorEx
 description: Zaawansowany plugin OneBlock z własnym światem, bossbarem i fazami
 commands:
   oneblock:
-    description: Tworzy wyspę OneBlock lub teleportuje na nią
-    usage: /oneblock
+    description: Zarządza wyspą OneBlock
+    usage: /oneblock [home|reload]
     aliases: [ob, startblock]
 permissions:
   oneblock.use:
     description: Pozwala na używanie komendy /oneblock
     default: true
+  oneblock.reload:
+    description: Pozwala na przeładowanie faz
+    default: op

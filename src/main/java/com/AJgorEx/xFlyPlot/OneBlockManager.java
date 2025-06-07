@@ -30,6 +30,11 @@ public class OneBlockManager {
         loadPhases();
     }
 
+    public void reloadPhases() {
+        phases.clear();
+        loadPhases();
+    }
+
     public void startIsland(Player player) {
         UUID uuid = player.getUniqueId();
 
@@ -63,7 +68,8 @@ public class OneBlockManager {
                 .environment(World.Environment.NORMAL)
                 .type(WorldType.FLAT));
 
-        Location genLoc = new Location(world, 0, 64, 0);
+        int height = plugin.getConfig().getInt("height", 64);
+        Location genLoc = new Location(world, 0, height, 0);
 
         world.getBlockAt(genLoc).setType(Material.GRASS_BLOCK);
         world.getBlockAt(genLoc.clone().subtract(0, 1, 0)).setType(Material.BEDROCK);
