@@ -1,6 +1,8 @@
 package com.AJgorEx.xFlyPlot.commands;
 
 import com.AJgorEx.xFlyPlot.OneBlockManager;
+import com.AJgorEx.xFlyPlot.Phase;
+import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -22,19 +24,38 @@ public class OneBlockCommand implements CommandExecutor {
         }
 
         if (args.length > 0) {
-            if (args[0].equalsIgnoreCase("home")) {
-                manager.teleportHome(p);
-            } else if (args[0].equalsIgnoreCase("progress")) {
-                manager.sendProgress(p);
-            } else if (args[0].equalsIgnoreCase("phases")) {
-                manager.listPhases(p);
-            } else {
-                manager.startIsland(p);
+            switch (args[0].toLowerCase()) {
+                case "home" -> manager.teleportHome(p);
+                case "progress" -> manager.sendProgress(p);
+                case "phases" -> manager.listPhases(p);
+                case "reset" -> {
+                    manager.removePlayer(p.getUniqueId());
+                    p.sendMessage(ChatColor.YELLOW + "Twoja wyspa zostala zresetowana.");
+                }
+                case "phase" -> {
+                    Phase phase = manager.getPlayerPhase(p.getUniqueId());
+                    p.sendMessage(ChatColor.YELLOW + "Aktualna faza: " + ChatColor.GOLD + phase.getName());
+                }
+                case "reload" -> {
+                    if (p.hasPermission("oneblock.reload")) {
+                        manager.reloadPhases();
+                        p.sendMessage(ChatColor.GREEN + "Przeladowano konfiguracje faz.");
+                    } else {
+                        p.sendMessage(ChatColor.RED + "Nie masz uprawnien.");
+                    }
+                }
+                case "help" -> sendHelp(p);
+                default -> manager.startIsland(p);
             }
         } else {
             manager.startIsland(p);
         }
 
         return true;
+    }
+
+    private void sendHelp(Player player) {
+        player.sendMessage(ChatColor.YELLOW + "Uzycie: /oneblock <subkomenda>");
+        player.sendMessage(ChatColor.GRAY + "home, progress, phases, phase, reset, reload, help");
     }
 }
