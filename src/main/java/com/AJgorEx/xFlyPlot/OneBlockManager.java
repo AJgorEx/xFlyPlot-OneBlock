@@ -9,6 +9,8 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.inventory.Inventory;
 
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 
 public class OneBlockManager {
@@ -18,6 +20,7 @@ public class OneBlockManager {
     // total amount of blocks each player has generated. Used for phase handling
     private final Map<UUID, Integer> playerProgress = new HashMap<>();
     private final Map<UUID, BossBar> playerBossbars = new HashMap<>();
+    private final Map<UUID, Integer> islandPoints = new HashMap<>();
     private final List<Phase> phases = new ArrayList<>();
     private final File phasesFile;
     private final String worldPrefix;
@@ -27,10 +30,13 @@ public class OneBlockManager {
     private final Sound soundDelete;
     private final Sound soundBonus;
     private boolean bonusDropsEnabled = true;
+    private final int levelBlocks;
+    private final MessageManager messages;
     private final Set<UUID> pausedPlayers = new HashSet<>();
 
-    public OneBlockManager(Plugin plugin) {
+    public OneBlockManager(Plugin plugin, MessageManager messages) {
         this.plugin = plugin;
+        this.messages = messages;
         this.phasesFile = new File(plugin.getDataFolder(), "phases.yml");
 
         FileConfiguration cfg = plugin.getConfig();
@@ -40,6 +46,7 @@ public class OneBlockManager {
         this.soundPhaseComplete = Sound.valueOf(cfg.getString("sounds.phase-complete", "UI_TOAST_CHALLENGE_COMPLETE"));
         this.soundDelete = Sound.valueOf(cfg.getString("sounds.island-delete", "ENTITY_WITHER_DEATH"));
         this.soundBonus = Sound.valueOf(cfg.getString("sounds.bonus", "ENTITY_EXPERIENCE_ORB_PICKUP"));
+        this.levelBlocks = cfg.getInt("level-blocks", 100);
 
         if (!phasesFile.exists()) {
             plugin.saveResource("phases.yml", false);
@@ -54,11 +61,11 @@ public class OneBlockManager {
         if (!playerGenerators.containsKey(uuid)) {
             createGenerator(uuid);
             teleportHome(player);
-            player.sendMessage(ChatColor.GREEN + "Twoja wyspa OneBlock została stworzona!");
+            messages.send(player, "island_created");
             player.playSound(player.getLocation(), soundStart, 1f, 1f);
             createBossbar(player);
         } else {
-            player.sendMessage(ChatColor.RED + "Masz już wyspę!");
+            messages.send(player, "already_has_island");
         }
     }
 
@@ -68,10 +75,10 @@ public class OneBlockManager {
 
         if (home != null) {
             player.teleport(home.clone().add(0.5, 1, 0.5));
-            player.sendMessage(ChatColor.YELLOW + "Teleportowano na wyspę OneBlock!");
+            messages.send(player, "teleport_home");
             player.playSound(player.getLocation(), soundTeleport, 1f, 1f);
         } else {
-            player.sendMessage(ChatColor.RED + "Nie masz jeszcze wyspy. Użyj /oneblock, żeby ją stworzyć.");
+            messages.send(player, "no_island");
         }
     }
 
@@ -90,6 +97,8 @@ public class OneBlockManager {
 
         playerGenerators.put(uuid, genLoc);
         playerProgress.put(uuid, 0);
+        islandPoints.put(uuid, 0);
+        saveStats();
     }
 
     public void handleBlockBreak(Player player) {
@@ -97,7 +106,7 @@ public class OneBlockManager {
 
         if (!playerGenerators.containsKey(uuid)) return;
         if (pausedPlayers.contains(uuid)) {
-            player.sendMessage(ChatColor.RED + "Twoja wyspa jest wstrzymana.");
+            messages.send(player, "island_paused");
             return;
         }
 
@@ -124,7 +133,7 @@ public class OneBlockManager {
         updateBossbar(player, progressInPhase, currentPhase.getBlockCount(), currentPhase.getName());
 
         if (progressInPhase >= currentPhase.getBlockCount()) {
-            player.sendMessage(ChatColor.GOLD + "Przechodzisz do następnej fazy!");
+            messages.send(player, "next_phase");
             spawnFirework(genLoc.getWorld(), genLoc.clone().add(0.5, 1, 0.5));
             player.playSound(player.getLocation(), soundPhaseComplete, 1f, 1f);
         }
@@ -206,7 +215,7 @@ public class OneBlockManager {
         if (!bonusDropsEnabled) return;
         if (Math.random() < 0.05) {
             loc.getWorld().dropItemNaturally(loc.clone().add(0.5, 1, 0.5), new org.bukkit.inventory.ItemStack(Material.DIAMOND));
-            player.sendMessage(ChatColor.GOLD + "Bonusowy diament!");
+            messages.send(player, "bonus");
             player.playSound(player.getLocation(), soundBonus, 1f, 1f);
         }
     }
@@ -238,8 +247,9 @@ public class OneBlockManager {
         inv.setItem(0, createItem(Material.GRASS_BLOCK, ChatColor.GREEN + "Start"));
         inv.setItem(1, createItem(Material.OAK_DOOR, ChatColor.YELLOW + "Home"));
         inv.setItem(2, createItem(Material.EXPERIENCE_BOTTLE, ChatColor.AQUA + "Progress"));
-        inv.setItem(3, createItem(Material.BOOK, ChatColor.AQUA + "Phases"));
-        inv.setItem(4, createItem(Material.BARRIER, ChatColor.RED + "Delete"));
+        inv.setItem(3, createItem(Material.PAPER, ChatColor.AQUA + "Level"));
+        inv.setItem(4, createItem(Material.BOOK, ChatColor.AQUA + "Phases"));
+        inv.setItem(5, createItem(Material.BARRIER, ChatColor.RED + "Delete"));
         player.openInventory(inv);
     }
 
@@ -269,17 +279,19 @@ public class OneBlockManager {
     public void removePlayer(UUID uuid) {
         playerGenerators.remove(uuid);
         playerProgress.remove(uuid);
+        islandPoints.remove(uuid);
         BossBar bar = playerBossbars.remove(uuid);
         if (bar != null) {
             bar.removeAll();
         }
+        saveStats();
     }
 
     public void deleteIsland(Player player) {
         UUID uuid = player.getUniqueId();
         Location loc = playerGenerators.get(uuid);
         if (loc == null) {
-            player.sendMessage(ChatColor.RED + "Nie masz wyspy do usunięcia.");
+            messages.send(player, "no_island_delete");
             return;
         }
 
@@ -292,7 +304,7 @@ public class OneBlockManager {
         deleteWorldFolder(world.getWorldFolder());
 
         player.playSound(player.getLocation(), soundDelete, 1f, 1f);
-        player.sendMessage(ChatColor.YELLOW + "Twoja wyspa została usunięta.");
+        messages.send(player, "island_deleted");
     }
 
     private void deleteWorldFolder(File file) {
@@ -329,7 +341,7 @@ public class OneBlockManager {
     public void sendProgress(Player player) {
         UUID uuid = player.getUniqueId();
         if (!playerGenerators.containsKey(uuid)) {
-            player.sendMessage(ChatColor.RED + "Nie masz jeszcze wyspy.");
+            messages.send(player, "no_island");
             return;
         }
         int total = getPlayerProgress(uuid);
@@ -338,6 +350,20 @@ public class OneBlockManager {
         int progress = total - getBlocksBeforePhase(phaseIndex);
         player.sendMessage(ChatColor.YELLOW + "Faza: " + ChatColor.GOLD + phase.getName()
                 + ChatColor.GRAY + " [" + progress + "/" + phase.getBlockCount() + "]");
+    }
+
+    public void sendLevel(Player player) {
+        UUID uuid = player.getUniqueId();
+        if (!playerGenerators.containsKey(uuid)) {
+            messages.send(player, "no_island");
+            return;
+        }
+        int points = getIslandPoints(uuid);
+        int level = getIslandLevel(uuid);
+        String msg = messages.get("level_info")
+                .replace("%level%", String.valueOf(level))
+                .replace("%points%", String.valueOf(points));
+        player.sendMessage(msg);
     }
 
     public void listPhases(Player player) {
@@ -423,5 +449,46 @@ public class OneBlockManager {
 
     public void addPhase(Phase phase) {
         phases.add(phase);
+    }
+
+    public MessageManager getMessages() {
+        return messages;
+    }
+
+    public boolean isPlayerIslandWorld(Player player, World world) {
+        Location loc = playerGenerators.get(player.getUniqueId());
+        return loc != null && loc.getWorld().equals(world);
+    }
+
+    public void addIslandPoint(UUID uuid) {
+        islandPoints.put(uuid, islandPoints.getOrDefault(uuid, 0) + 1);
+        saveStats();
+    }
+
+    public int getIslandPoints(UUID uuid) {
+        return islandPoints.getOrDefault(uuid, 0);
+    }
+
+    public int getIslandLevel(UUID uuid) {
+        return (getIslandPoints(uuid) / levelBlocks) + 1;
+    }
+
+    private void saveStats() {
+        File file = new File(plugin.getDataFolder(), "stats.json");
+        try (FileWriter writer = new FileWriter(file)) {
+            writer.write("[");
+            boolean first = true;
+            for (UUID id : islandPoints.keySet()) {
+                if (!first) writer.write(",");
+                first = false;
+                String name = Bukkit.getOfflinePlayer(id).getName();
+                int pts = islandPoints.get(id);
+                int lvl = getIslandLevel(id);
+                writer.write(String.format("{\"uuid\":\"%s\",\"name\":\"%s\",\"points\":%d,\"level\":%d}", id, name == null ? "unknown" : name, pts, lvl));
+            }
+            writer.write("]");
+        } catch (IOException e) {
+            plugin.getLogger().warning("Failed to save stats: " + e.getMessage());
+        }
     }
 }

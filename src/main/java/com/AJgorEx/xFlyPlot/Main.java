@@ -10,15 +10,18 @@ import org.bukkit.plugin.java.JavaPlugin;
 public class Main extends JavaPlugin {
 
     private OneBlockManager manager;
+    private MessageManager messages;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
-        manager = new OneBlockManager(this);
+        messages = new MessageManager(this);
+        manager = new OneBlockManager(this, messages);
         getCommand("oneblock").setExecutor(new OneBlockCommand(manager));
         getServer().getPluginManager().registerEvents(new BlockBreakListener(manager), this);
         getServer().getPluginManager().registerEvents(new VoidFallListener(manager), this);
         getServer().getPluginManager().registerEvents(new MenuListener(manager), this);
+        getServer().getPluginManager().registerEvents(new com.AJgorEx.xFlyPlot.listeners.BlockPlaceListener(manager), this);
         getServer().getPluginManager().registerEvents(new GeneratorInteractListener(manager), this);
         getLogger().info("xFlyPlot enabled.");
     }

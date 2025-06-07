@@ -28,6 +28,7 @@ public class MenuListener implements Listener {
             case GRASS_BLOCK -> manager.startIsland(player);
             case OAK_DOOR -> manager.teleportHome(player);
             case EXPERIENCE_BOTTLE -> manager.sendProgress(player);
+            case PAPER -> manager.sendLevel(player);
             case BOOK -> manager.listPhases(player);
             case BARRIER -> manager.deleteIsland(player);
         }

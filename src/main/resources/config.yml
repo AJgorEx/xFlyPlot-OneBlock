@@ -1,5 +1,9 @@
 # Default configuration for xFlyPlot
 world-prefix: xflyplot-
+# Language for messages (en or pl)
+language: pl
+# Amount of placed blocks needed to gain an island level
+level-blocks: 100
 # Sound names can be changed
 sounds:
   start: ENTITY_PLAYER_LEVELUP
