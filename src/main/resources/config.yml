@@ -1,0 +1,9 @@
+# Default configuration for xFlyPlot
+world-prefix: xflyplot-
+# Sound names can be changed
+sounds:
+  start: ENTITY_PLAYER_LEVELUP
+  teleport: ENTITY_ENDERMAN_TELEPORT
+  phase-complete: UI_TOAST_CHALLENGE_COMPLETE
+  island-delete: ENTITY_WITHER_DEATH
+  bonus: ENTITY_EXPERIENCE_ORB_PICKUP

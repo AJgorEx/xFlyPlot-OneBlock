@@ -6,6 +6,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.inventory.Inventory;
 
 import java.io.File;
 import java.util.*;
@@ -19,10 +20,24 @@ public class OneBlockManager {
     private final Map<UUID, BossBar> playerBossbars = new HashMap<>();
     private final List<Phase> phases = new ArrayList<>();
     private final File phasesFile;
+    private final String worldPrefix;
+    private final Sound soundStart;
+    private final Sound soundTeleport;
+    private final Sound soundPhaseComplete;
+    private final Sound soundDelete;
+    private final Sound soundBonus;
 
     public OneBlockManager(Plugin plugin) {
         this.plugin = plugin;
         this.phasesFile = new File(plugin.getDataFolder(), "phases.yml");
+
+        FileConfiguration cfg = plugin.getConfig();
+        this.worldPrefix = cfg.getString("world-prefix", "xflyplot-");
+        this.soundStart = Sound.valueOf(cfg.getString("sounds.start", "ENTITY_PLAYER_LEVELUP"));
+        this.soundTeleport = Sound.valueOf(cfg.getString("sounds.teleport", "ENTITY_ENDERMAN_TELEPORT"));
+        this.soundPhaseComplete = Sound.valueOf(cfg.getString("sounds.phase-complete", "UI_TOAST_CHALLENGE_COMPLETE"));
+        this.soundDelete = Sound.valueOf(cfg.getString("sounds.island-delete", "ENTITY_WITHER_DEATH"));
+        this.soundBonus = Sound.valueOf(cfg.getString("sounds.bonus", "ENTITY_EXPERIENCE_ORB_PICKUP"));
 
         if (!phasesFile.exists()) {
             plugin.saveResource("phases.yml", false);
@@ -38,6 +53,7 @@ public class OneBlockManager {
             createGenerator(uuid);
             teleportHome(player);
             player.sendMessage(ChatColor.GREEN + "Twoja wyspa OneBlock została stworzona!");
+            player.playSound(player.getLocation(), soundStart, 1f, 1f);
             createBossbar(player);
         } else {
             player.sendMessage(ChatColor.RED + "Masz już wyspę!");
@@ -51,13 +67,14 @@ public class OneBlockManager {
         if (home != null) {
             player.teleport(home.clone().add(0.5, 1, 0.5));
             player.sendMessage(ChatColor.YELLOW + "Teleportowano na wyspę OneBlock!");
+            player.playSound(player.getLocation(), soundTeleport, 1f, 1f);
         } else {
             player.sendMessage(ChatColor.RED + "Nie masz jeszcze wyspy. Użyj /oneblock, żeby ją stworzyć.");
         }
     }
 
     public void createGenerator(UUID uuid) {
-        String worldName = "xflyplot-" + uuid.toString().substring(0, 8);
+        String worldName = worldPrefix + uuid.toString().substring(0, 8);
 
         World world = Bukkit.createWorld(new WorldCreator(worldName)
                 .generator(new VoidChunkGenerator())
@@ -89,6 +106,7 @@ public class OneBlockManager {
 
         Location genLoc = playerGenerators.get(uuid);
         genLoc.getBlock().setType(nextBlock);
+        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1f);
 
         int newTotal = total + 1;
         playerProgress.put(uuid, newTotal);
@@ -102,6 +120,7 @@ public class OneBlockManager {
         if (progressInPhase >= currentPhase.getBlockCount()) {
             player.sendMessage(ChatColor.GOLD + "Przechodzisz do następnej fazy!");
             spawnFirework(genLoc.getWorld(), genLoc.clone().add(0.5, 1, 0.5));
+            player.playSound(player.getLocation(), soundPhaseComplete, 1f, 1f);
         }
 
         maybeDropBonus(player, genLoc);
@@ -181,6 +200,7 @@ public class OneBlockManager {
         if (Math.random() < 0.05) {
             loc.getWorld().dropItemNaturally(loc.clone().add(0.5, 1, 0.5), new org.bukkit.inventory.ItemStack(Material.DIAMOND));
             player.sendMessage(ChatColor.GOLD + "Bonusowy diament!");
+            player.playSound(player.getLocation(), soundBonus, 1f, 1f);
         }
     }
 
@@ -212,7 +232,7 @@ public class OneBlockManager {
         inv.setItem(1, createItem(Material.OAK_DOOR, ChatColor.YELLOW + "Home"));
         inv.setItem(2, createItem(Material.EXPERIENCE_BOTTLE, ChatColor.AQUA + "Progress"));
         inv.setItem(3, createItem(Material.BOOK, ChatColor.AQUA + "Phases"));
-        inv.setItem(4, createItem(Material.BARRIER, ChatColor.RED + "Reset"));
+        inv.setItem(4, createItem(Material.BARRIER, ChatColor.RED + "Delete"));
         player.openInventory(inv);
     }
 
@@ -246,6 +266,39 @@ public class OneBlockManager {
         if (bar != null) {
             bar.removeAll();
         }
+    }
+
+    public void deleteIsland(Player player) {
+        UUID uuid = player.getUniqueId();
+        Location loc = playerGenerators.get(uuid);
+        if (loc == null) {
+            player.sendMessage(ChatColor.RED + "Nie masz wyspy do usunięcia.");
+            return;
+        }
+
+        World world = loc.getWorld();
+        player.teleport(Bukkit.getWorlds().get(0).getSpawnLocation());
+
+        removePlayer(uuid);
+
+        Bukkit.unloadWorld(world, false);
+        deleteWorldFolder(world.getWorldFolder());
+
+        player.playSound(player.getLocation(), soundDelete, 1f, 1f);
+        player.sendMessage(ChatColor.YELLOW + "Twoja wyspa została usunięta.");
+    }
+
+    private void deleteWorldFolder(File file) {
+        if (!file.exists()) return;
+        if (file.isDirectory()) {
+            File[] files = file.listFiles();
+            if (files != null) {
+                for (File f : files) {
+                    deleteWorldFolder(f);
+                }
+            }
+        }
+        file.delete();
     }
 
     public void clearAll() {
