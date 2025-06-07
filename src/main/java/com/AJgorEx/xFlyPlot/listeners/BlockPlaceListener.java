@@ -17,7 +17,7 @@ public class BlockPlaceListener implements Listener {
     public void onBlockPlace(BlockPlaceEvent event) {
         Player player = event.getPlayer();
         if (manager.isPlayerIslandWorld(player, event.getBlock().getWorld())) {
-            manager.addIslandPoint(player.getUniqueId());
+            manager.addIslandPoint(player.getUniqueId(), event.getBlockPlaced().getType());
         }
     }
 }

@@ -12,23 +12,36 @@
 </style>
 </head>
 <body>
-<div class="glass">
+<div class="glass" id="info">
   <h1>OneBlock Leaderboard</h1>
   <table id="board">
     <thead><tr><th>Player</th><th>Level</th><th>Points</th></tr></thead>
     <tbody></tbody>
   </table>
+  <div id="server" style="margin-top:10px;font-size:14px;"></div>
 </div>
 <script>
-fetch('/stats').then(r=>r.json()).then(data=>{
+function updateBoard(data){
   const tbody=document.querySelector('#board tbody');
+  tbody.innerHTML='';
   data.sort((a,b)=>b.points-a.points);
   data.forEach(e=>{
     const row=document.createElement('tr');
-    row.innerHTML=`<td>${e.name}</td><td>${e.level}</td><td>${e.points}</td>`;
+    const avatar=`<img src="https://crafatar.com/avatars/${e.uuid}?size=32" style="vertical-align:middle;border-radius:4px;margin-right:5px">`;
+    row.innerHTML=`<td>${avatar}${e.name}</td><td>${e.level}</td><td>${e.points}</td>`;
     tbody.appendChild(row);
   });
-});
+}
+function updateServer(data){
+  const div=document.getElementById('server');
+  if(!data) return;
+  div.textContent=`Online: ${data.online} | Islands: ${data.islands} | Version: ${data.version}`;
+}
+function refresh(){
+  fetch('/stats').then(r=>r.json()).then(updateBoard);
+  fetch('/server').then(r=>r.json()).then(updateServer);
+}
+setInterval(refresh,5000);refresh();
 </script>
 </body>
 </html>

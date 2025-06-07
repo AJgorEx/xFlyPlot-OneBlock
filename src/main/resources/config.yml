@@ -13,3 +13,11 @@ sounds:
   phase-complete: UI_TOAST_CHALLENGE_COMPLETE
   island-delete: ENTITY_WITHER_DEATH
   bonus: ENTITY_EXPERIENCE_ORB_PICKUP
+
+# Points awarded for placing blocks. Material names follow Bukkit enum names.
+# 'default' value is used when a material is not listed.
+block-points:
+  default: 1
+  diamond_block: 5
+  gold_block: 3
+  iron_block: 2

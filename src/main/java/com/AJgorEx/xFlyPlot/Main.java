@@ -26,6 +26,13 @@ public class Main extends JavaPlugin {
         getLogger().info("xFlyPlot enabled.");
     }
 
+    @Override
+    public void onDisable() {
+        if (manager != null) {
+            manager.clearAll();
+        }
+    }
+
     public OneBlockManager getOneBlockManager() {
         return manager;
     }
