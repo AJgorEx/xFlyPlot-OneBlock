@@ -130,7 +130,7 @@ public class OneBlockManager {
         }
     }
 
-    private Phase getCurrentPhase(int blocksBroken) {
+    public Phase getCurrentPhase(int blocksBroken) {
         int sum = 0;
         for (Phase phase : phases) {
             sum += phase.getBlockCount();
@@ -191,5 +191,33 @@ public class OneBlockManager {
 
     public List<Phase> getPhases() {
         return Collections.unmodifiableList(phases);
+    }
+
+    public int getPlayerProgress(UUID uuid) {
+        return playerProgress.getOrDefault(uuid, 0);
+    }
+
+    public Phase getPlayerPhase(UUID uuid) {
+        return getCurrentPhase(getPlayerProgress(uuid));
+    }
+
+    public void sendProgress(Player player) {
+        UUID uuid = player.getUniqueId();
+        if (!playerGenerators.containsKey(uuid)) {
+            player.sendMessage(ChatColor.RED + "Nie masz jeszcze wyspy.");
+            return;
+        }
+        int progress = getPlayerProgress(uuid);
+        Phase phase = getCurrentPhase(progress);
+        player.sendMessage(ChatColor.YELLOW + "Faza: " + ChatColor.GOLD + phase.getName()
+                + ChatColor.GRAY + " [" + progress + "/" + phase.getBlockCount() + "]");
+    }
+
+    public void listPhases(Player player) {
+        player.sendMessage(ChatColor.YELLOW + "Dostępne fazy:");
+        for (Phase phase : phases) {
+            player.sendMessage(ChatColor.GRAY + "- " + ChatColor.GOLD + phase.getName()
+                    + ChatColor.GRAY + " (" + phase.getBlockCount() + ")");
+        }
     }
 }
