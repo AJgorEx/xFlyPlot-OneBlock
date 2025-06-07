@@ -5,22 +5,34 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OneBlock Dashboard</title>
 <style>
- body{font-family:Arial,Helvetica,sans-serif;background:#121212;color:#fff;}
- .glass{backdrop-filter:blur(10px);background:rgba(255,255,255,0.1);border-radius:10px;padding:20px;margin:20px;}
- table{width:100%;border-collapse:collapse;}
- th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);} 
+ body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:linear-gradient(120deg,#1d1f20,#151515);color:#fff;}
+ .container{max-width:900px;margin:auto;padding:20px;}
+ .card{background:rgba(255,255,255,0.1);backdrop-filter:blur(8px);border-radius:8px;padding:20px;margin-bottom:20px;}
+ h1{text-align:center;margin-top:0;font-size:2rem;}
+ table{width:100%;border-collapse:collapse;margin-top:10px;}
+ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);}
+ #server{margin-top:10px;font-size:14px;}
+ #last-update{font-size:12px;text-align:right;margin-top:5px;color:#ccc;}
+ canvas{max-width:100%;height:200px;}
 </style>
 </head>
 <body>
-<div class="glass" id="info">
-  <h1>OneBlock Leaderboard</h1>
-  <table id="board">
-    <thead><tr><th>Player</th><th>Level</th><th>Points</th></tr></thead>
-    <tbody></tbody>
-  </table>
-  <div id="server" style="margin-top:10px;font-size:14px;"></div>
+<div class="container">
+  <div class="card" id="info">
+    <h1>OneBlock Leaderboard</h1>
+    <canvas id="chart"></canvas>
+    <table id="board">
+      <thead><tr><th>Player</th><th>Level</th><th>Points</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div id="server"></div>
+    <div id="last-update"></div>
+  </div>
 </div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+let chart;
 function updateBoard(data){
   const tbody=document.querySelector('#board tbody');
   tbody.innerHTML='';
@@ -31,17 +43,30 @@ function updateBoard(data){
     row.innerHTML=`<td>${avatar}${e.name}</td><td>${e.level}</td><td>${e.points}</td>`;
     tbody.appendChild(row);
   });
+  updateChart(data);
+}
+function updateChart(data){
+  const ctx=document.getElementById('chart').getContext('2d');
+  const labels=data.slice(0,5).map(e=>e.name);
+  const points=data.slice(0,5).map(e=>e.points);
+  if(!chart){
+    chart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'Points',data:points,backgroundColor:'rgba(75,192,192,0.5)',borderColor:'rgba(75,192,192,1)',borderWidth:1}]},options:{scales:{y:{beginAtZero:true}}}});
+  }else{
+    chart.data.labels=labels;
+    chart.data.datasets[0].data=points;
+    chart.update();
+  }
 }
 function updateServer(data){
   const div=document.getElementById('server');
   if(!data) return;
   div.textContent=`Online: ${data.online} | Islands: ${data.islands} | Version: ${data.version}`;
 }
-function refresh(){
-  fetch('/stats').then(r=>r.json()).then(updateBoard);
-  fetch('/server').then(r=>r.json()).then(updateServer);
+function showTime(){
+  document.getElementById('last-update').textContent='Last update: '+new Date().toLocaleTimeString();
 }
-setInterval(refresh,5000);refresh();
+const socket=io();
+socket.on('update',d=>{updateBoard(d.stats);updateServer(d.server);showTime();});
 </script>
 </body>
 </html>
