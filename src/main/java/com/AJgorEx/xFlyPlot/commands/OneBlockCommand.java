@@ -19,7 +19,7 @@ public class OneBlockCommand implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
         if (!(sender instanceof Player p)) {
-            sender.sendMessage("Tylko gracze mogą tego używać.");
+            if (sender != null) sender.sendMessage(manager.getMessages().get("only_players"));
             return true;
         }
 
@@ -31,6 +31,7 @@ public class OneBlockCommand implements CommandExecutor {
                 case "menu" -> manager.openMenu(p);
                 case "start" -> manager.startIsland(p);
                 case "delete" -> manager.deleteIsland(p);
+                case "level" -> manager.sendLevel(p);
                 case "phase" -> {
                     Phase phase = manager.getPlayerPhase(p.getUniqueId());
                     p.sendMessage(ChatColor.YELLOW + "Aktualna faza: " + ChatColor.GOLD + phase.getName());
@@ -38,9 +39,10 @@ public class OneBlockCommand implements CommandExecutor {
                 case "reload" -> {
                     if (p.hasPermission("oneblock.reload")) {
                         manager.reloadPhases();
-                        p.sendMessage(ChatColor.GREEN + "Przeladowano konfiguracje faz.");
+                        manager.getMessages().reload();
+                        p.sendMessage(ChatColor.GREEN + "Przeladowano konfiguracje faz i wiadomości.");
                     } else {
-                        p.sendMessage(ChatColor.RED + "Nie masz uprawnien.");
+                        p.sendMessage(manager.getMessages().get("no_permission"));
                     }
                 }
                 case "help" -> sendHelp(p);
@@ -55,6 +57,6 @@ public class OneBlockCommand implements CommandExecutor {
 
     private void sendHelp(Player player) {
         player.sendMessage(ChatColor.YELLOW + "Uzycie: /oneblock <subkomenda>");
-        player.sendMessage(ChatColor.GRAY + "menu, start, home, progress, phases, phase, delete, reload, help");
+        player.sendMessage(ChatColor.GRAY + "menu, start, home, progress, phases, phase, level, delete, reload, help");
     }
 }
