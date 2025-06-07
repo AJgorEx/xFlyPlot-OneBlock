@@ -130,6 +130,11 @@ public class OneBlockManager {
         }
     }
 
+    public void reloadPhases() {
+        phases.clear();
+        loadPhases();
+    }
+
     public Phase getCurrentPhase(int blocksBroken) {
         int sum = 0;
         for (Phase phase : phases) {

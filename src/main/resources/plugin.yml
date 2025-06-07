@@ -7,9 +7,12 @@ description: Zaawansowany plugin OneBlock z własnym światem, bossbarem i fazam
 commands:
   oneblock:
     description: Tworzy wyspę OneBlock, teleportuje na nią i wyświetla informacje
-    usage: /oneblock [home|progress|phases]
+    usage: /oneblock [home|progress|phases|phase|reset|reload|help]
     aliases: [ob, startblock]
 permissions:
   oneblock.use:
     description: Pozwala na używanie komendy /oneblock
     default: true
+  oneblock.reload:
+    description: Pozwala na przeładowanie pliku phases.yml
+    default: op
