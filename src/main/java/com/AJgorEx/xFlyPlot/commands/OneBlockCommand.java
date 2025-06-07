@@ -21,8 +21,16 @@ public class OneBlockCommand implements CommandExecutor {
             return true;
         }
 
-        if (args.length > 0 && args[0].equalsIgnoreCase("home")) {
-            manager.teleportHome(p);
+        if (args.length > 0) {
+            if (args[0].equalsIgnoreCase("home")) {
+                manager.teleportHome(p);
+            } else if (args[0].equalsIgnoreCase("progress")) {
+                manager.sendProgress(p);
+            } else if (args[0].equalsIgnoreCase("phases")) {
+                manager.listPhases(p);
+            } else {
+                manager.startIsland(p);
+            }
         } else {
             manager.startIsland(p);
         }
