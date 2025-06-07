@@ -29,10 +29,7 @@ public class MenuListener implements Listener {
             case OAK_DOOR -> manager.teleportHome(player);
             case EXPERIENCE_BOTTLE -> manager.sendProgress(player);
             case BOOK -> manager.listPhases(player);
-            case BARRIER -> {
-                manager.removePlayer(player.getUniqueId());
-                player.sendMessage(ChatColor.YELLOW + "Twoja wyspa zostala zresetowana.");
-            }
+            case BARRIER -> manager.deleteIsland(player);
         }
 
         player.closeInventory();

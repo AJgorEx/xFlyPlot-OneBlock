@@ -30,10 +30,7 @@ public class OneBlockCommand implements CommandExecutor {
                 case "phases" -> manager.listPhases(p);
                 case "menu" -> manager.openMenu(p);
                 case "start" -> manager.startIsland(p);
-                case "reset" -> {
-                    manager.removePlayer(p.getUniqueId());
-                    p.sendMessage(ChatColor.YELLOW + "Twoja wyspa zostala zresetowana.");
-                }
+                case "delete" -> manager.deleteIsland(p);
                 case "phase" -> {
                     Phase phase = manager.getPlayerPhase(p.getUniqueId());
                     p.sendMessage(ChatColor.YELLOW + "Aktualna faza: " + ChatColor.GOLD + phase.getName());
@@ -58,6 +55,6 @@ public class OneBlockCommand implements CommandExecutor {
 
     private void sendHelp(Player player) {
         player.sendMessage(ChatColor.YELLOW + "Uzycie: /oneblock <subkomenda>");
-        player.sendMessage(ChatColor.GRAY + "menu, start, home, progress, phases, phase, reset, reload, help");
+        player.sendMessage(ChatColor.GRAY + "menu, start, home, progress, phases, phase, delete, reload, help");
     }
 }

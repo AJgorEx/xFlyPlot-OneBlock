@@ -19,7 +19,7 @@ public class VoidFallListener implements Listener {
         if (event.getEntity() instanceof Player player &&
                 event.getCause() == EntityDamageEvent.DamageCause.VOID) {
             event.setCancelled(true);
-            player.teleport(manager.getGenerator(player.getUniqueId()));
+            player.teleport(manager.getGenerator(player.getUniqueId()).clone().add(0.5, 1, 0.5));
         }
     }
 }
