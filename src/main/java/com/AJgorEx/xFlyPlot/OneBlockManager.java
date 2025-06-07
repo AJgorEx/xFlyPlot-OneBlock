@@ -14,6 +14,7 @@ public class OneBlockManager {
 
     private final Plugin plugin;
     private final Map<UUID, Location> playerGenerators = new HashMap<>();
+    // total amount of blocks each player has generated. Used for phase handling
     private final Map<UUID, Integer> playerProgress = new HashMap<>();
     private final Map<UUID, BossBar> playerBossbars = new HashMap<>();
     private final List<Phase> phases = new ArrayList<>();
@@ -68,7 +69,7 @@ public class OneBlockManager {
         world.getBlockAt(genLoc).setType(Material.GRASS_BLOCK);
         world.getBlockAt(genLoc.clone().subtract(0, 1, 0)).setType(Material.BEDROCK);
 
-        playerGenerators.put(uuid, genLoc.add(0.5, 0.0, 0.5));
+        playerGenerators.put(uuid, genLoc);
         playerProgress.put(uuid, 0);
     }
 
@@ -77,8 +78,8 @@ public class OneBlockManager {
 
         if (!playerGenerators.containsKey(uuid)) return;
 
-        int progress = playerProgress.getOrDefault(uuid, 0);
-        Phase currentPhase = getCurrentPhase(progress);
+        int total = playerProgress.getOrDefault(uuid, 0);
+        Phase currentPhase = getCurrentPhase(total);
         Material nextBlock = getRandomBlock(currentPhase);
 
         if (!nextBlock.isBlock()) {
@@ -89,15 +90,21 @@ public class OneBlockManager {
         Location genLoc = playerGenerators.get(uuid);
         genLoc.getBlock().setType(nextBlock);
 
-        int newProgress = progress + 1;
-        playerProgress.put(uuid, newProgress);
+        int newTotal = total + 1;
+        playerProgress.put(uuid, newTotal);
 
-        updateBossbar(player, newProgress, currentPhase.getBlockCount(), currentPhase.getName());
+        int phaseIndex = getPhaseIndex(total);
+        int blocksBefore = getBlocksBeforePhase(phaseIndex);
+        int progressInPhase = newTotal - blocksBefore;
 
-        if (newProgress >= currentPhase.getBlockCount()) {
+        updateBossbar(player, progressInPhase, currentPhase.getBlockCount(), currentPhase.getName());
+
+        if (progressInPhase >= currentPhase.getBlockCount()) {
             player.sendMessage(ChatColor.GOLD + "Przechodzisz do następnej fazy!");
-            playerProgress.put(uuid, 0);
+            spawnFirework(genLoc.getWorld(), genLoc.clone().add(0.5, 1, 0.5));
         }
+
+        maybeDropBonus(player, genLoc);
     }
 
     private Material getRandomBlock(Phase phase) {
@@ -144,6 +151,39 @@ public class OneBlockManager {
         return phases.get(phases.size() - 1);
     }
 
+    private int getPhaseIndex(int blocksBroken) {
+        int sum = 0;
+        for (int i = 0; i < phases.size(); i++) {
+            sum += phases.get(i).getBlockCount();
+            if (blocksBroken < sum) return i;
+        }
+        return phases.size() - 1;
+    }
+
+    private int getBlocksBeforePhase(int phaseIndex) {
+        int sum = 0;
+        for (int i = 0; i < phaseIndex; i++) {
+            sum += phases.get(i).getBlockCount();
+        }
+        return sum;
+    }
+
+    private void spawnFirework(World world, Location loc) {
+        world.spawn(loc, org.bukkit.entity.Firework.class, fw -> {
+            var meta = fw.getFireworkMeta();
+            meta.addEffect(org.bukkit.FireworkEffect.builder().withColor(Color.AQUA).trail(true).build());
+            meta.setPower(1);
+            fw.setFireworkMeta(meta);
+        });
+    }
+
+    private void maybeDropBonus(Player player, Location loc) {
+        if (Math.random() < 0.05) {
+            loc.getWorld().dropItemNaturally(loc.clone().add(0.5, 1, 0.5), new org.bukkit.inventory.ItemStack(Material.DIAMOND));
+            player.sendMessage(ChatColor.GOLD + "Bonusowy diament!");
+        }
+    }
+
     private void createBossbar(Player player) {
         UUID uuid = player.getUniqueId();
         BossBar bar = Bukkit.createBossBar("OneBlock", BarColor.BLUE, BarStyle.SEGMENTED_10);
@@ -164,6 +204,26 @@ public class OneBlockManager {
         bar.setProgress(ratio);
         bar.setTitle(ChatColor.YELLOW + "Faza: " + ChatColor.GOLD + phaseName +
                 ChatColor.GRAY + " [" + progress + "/" + required + "]");
+    }
+
+    public void openMenu(Player player) {
+        Inventory inv = Bukkit.createInventory(null, 9, ChatColor.GOLD + "OneBlock");
+        inv.setItem(0, createItem(Material.GRASS_BLOCK, ChatColor.GREEN + "Start"));
+        inv.setItem(1, createItem(Material.OAK_DOOR, ChatColor.YELLOW + "Home"));
+        inv.setItem(2, createItem(Material.EXPERIENCE_BOTTLE, ChatColor.AQUA + "Progress"));
+        inv.setItem(3, createItem(Material.BOOK, ChatColor.AQUA + "Phases"));
+        inv.setItem(4, createItem(Material.BARRIER, ChatColor.RED + "Reset"));
+        player.openInventory(inv);
+    }
+
+    private org.bukkit.inventory.ItemStack createItem(Material mat, String name) {
+        org.bukkit.inventory.ItemStack item = new org.bukkit.inventory.ItemStack(mat);
+        org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(name);
+            item.setItemMeta(meta);
+        }
+        return item;
     }
 
     public boolean isIslandBlock(Player player, Location loc) {
@@ -212,8 +272,10 @@ public class OneBlockManager {
             player.sendMessage(ChatColor.RED + "Nie masz jeszcze wyspy.");
             return;
         }
-        int progress = getPlayerProgress(uuid);
-        Phase phase = getCurrentPhase(progress);
+        int total = getPlayerProgress(uuid);
+        int phaseIndex = getPhaseIndex(total);
+        Phase phase = phases.get(phaseIndex);
+        int progress = total - getBlocksBeforePhase(phaseIndex);
         player.sendMessage(ChatColor.YELLOW + "Faza: " + ChatColor.GOLD + phase.getName()
                 + ChatColor.GRAY + " [" + progress + "/" + phase.getBlockCount() + "]");
     }
