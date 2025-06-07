@@ -21,6 +21,8 @@ public class OneBlockManager {
     private final Map<UUID, Integer> playerProgress = new HashMap<>();
     private final Map<UUID, BossBar> playerBossbars = new HashMap<>();
     private final Map<UUID, Integer> islandPoints = new HashMap<>();
+    private final Map<UUID, Long> sessionStart = new HashMap<>();
+    private final Map<UUID, Long> totalSessionTime = new HashMap<>();
     private final List<Phase> phases = new ArrayList<>();
     private final File phasesFile;
     private final String worldPrefix;
@@ -34,6 +36,8 @@ public class OneBlockManager {
     private final double borderSize;
     private final MessageManager messages;
     private final Set<UUID> pausedPlayers = new HashSet<>();
+    private final Map<Material, Integer> blockPointValues = new HashMap<>();
+    private int defaultBlockPoints = 1;
 
     public OneBlockManager(Plugin plugin, MessageManager messages) {
         this.plugin = plugin;
@@ -50,11 +54,26 @@ public class OneBlockManager {
         this.levelBlocks = cfg.getInt("level-blocks", 100);
         this.borderSize = cfg.getDouble("island-border-size", 64);
 
+        if (cfg.isConfigurationSection("block-points")) {
+            var section = cfg.getConfigurationSection("block-points");
+            defaultBlockPoints = section.getInt("default", 1);
+            for (String key : section.getKeys(false)) {
+                if ("default".equalsIgnoreCase(key)) continue;
+                try {
+                    blockPointValues.put(Material.valueOf(key.toUpperCase()), section.getInt(key));
+                } catch (IllegalArgumentException ignored) {
+                    plugin.getLogger().warning("Unknown material in block-points: " + key);
+                }
+            }
+        }
+
         if (!phasesFile.exists()) {
             plugin.saveResource("phases.yml", false);
         }
 
         loadPhases();
+        loadSessions();
+        saveServerInfo();
     }
 
     public void startIsland(Player player) {
@@ -81,6 +100,8 @@ public class OneBlockManager {
             WorldBorder border = home.getWorld().getWorldBorder();
             border.setCenter(0.5, 0.5);
             border.setSize(borderSize);
+
+            startSession(uuid);
 
             messages.send(player, "teleport_home");
             player.playSound(player.getLocation(), soundTeleport, 1f, 1f);
@@ -250,8 +271,9 @@ public class OneBlockManager {
 
         double ratio = Math.min(1.0, (double) progress / required);
         bar.setProgress(ratio);
+        int level = getIslandLevel(uuid);
         bar.setTitle(ChatColor.YELLOW + "Faza: " + ChatColor.GOLD + phaseName +
-                ChatColor.GRAY + " [" + progress + "/" + required + "]");
+                ChatColor.GRAY + " [" + progress + "/" + required + "] " + ChatColor.AQUA + "Lvl " + level);
     }
 
     public void openMenu(Player player) {
@@ -292,6 +314,7 @@ public class OneBlockManager {
         playerGenerators.remove(uuid);
         playerProgress.remove(uuid);
         islandPoints.remove(uuid);
+        endSession(uuid);
         BossBar bar = playerBossbars.remove(uuid);
         if (bar != null) {
             bar.removeAll();
@@ -309,6 +332,8 @@ public class OneBlockManager {
 
         World world = loc.getWorld();
         player.teleport(Bukkit.getWorlds().get(0).getSpawnLocation());
+
+        endSession(uuid);
 
         removePlayer(uuid);
 
@@ -472,8 +497,9 @@ public class OneBlockManager {
         return loc != null && loc.getWorld().equals(world);
     }
 
-    public void addIslandPoint(UUID uuid) {
-        islandPoints.put(uuid, islandPoints.getOrDefault(uuid, 0) + 1);
+    public void addIslandPoint(UUID uuid, Material block) {
+        int pts = blockPointValues.getOrDefault(block, defaultBlockPoints);
+        islandPoints.put(uuid, islandPoints.getOrDefault(uuid, 0) + pts);
         saveStats();
     }
 
@@ -501,6 +527,58 @@ public class OneBlockManager {
             writer.write("]");
         } catch (IOException e) {
             plugin.getLogger().warning("Failed to save stats: " + e.getMessage());
+        }
+        saveServerInfo();
+    }
+
+    private void saveSessions() {
+        File file = new File(plugin.getDataFolder(), "sessions.yml");
+        YamlConfiguration cfg = new YamlConfiguration();
+        for (UUID id : totalSessionTime.keySet()) {
+            cfg.set(id.toString(), totalSessionTime.get(id));
+        }
+        try {
+            cfg.save(file);
+        } catch (IOException e) {
+            plugin.getLogger().warning("Failed to save sessions: " + e.getMessage());
+        }
+        saveServerInfo();
+    }
+
+    private void saveServerInfo() {
+        File file = new File(plugin.getDataFolder(), "server.json");
+        try (FileWriter writer = new FileWriter(file)) {
+            writer.write(String.format("{\"online\":%d,\"islands\":%d,\"version\":\"%s\"}",
+                    Bukkit.getOnlinePlayers().size(), playerGenerators.size(), Bukkit.getVersion()));
+        } catch (IOException e) {
+            plugin.getLogger().warning("Failed to save server info: " + e.getMessage());
+        }
+    }
+
+    private void loadSessions() {
+        File file = new File(plugin.getDataFolder(), "sessions.yml");
+        if (!file.exists()) return;
+        YamlConfiguration cfg = YamlConfiguration.loadConfiguration(file);
+        for (String key : cfg.getKeys(false)) {
+            try {
+                UUID id = UUID.fromString(key);
+                totalSessionTime.put(id, cfg.getLong(key));
+            } catch (IllegalArgumentException ignored) {
+                plugin.getLogger().warning("Invalid UUID in sessions.yml: " + key);
+            }
+        }
+    }
+
+    private void startSession(UUID uuid) {
+        sessionStart.put(uuid, System.currentTimeMillis());
+    }
+
+    private void endSession(UUID uuid) {
+        Long start = sessionStart.remove(uuid);
+        if (start != null) {
+            long duration = System.currentTimeMillis() - start;
+            totalSessionTime.put(uuid, totalSessionTime.getOrDefault(uuid, 0L) + duration);
+            saveSessions();
         }
     }
 }
