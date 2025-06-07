@@ -22,6 +22,7 @@ public class GeneratorInteractListener implements Listener {
         if (!(event.getPlayer() instanceof Player player)) return;
         if (event.getClickedBlock() == null) return;
         if (!manager.isIslandBlock(player, event.getClickedBlock().getLocation())) return;
+        if (player.isSneaking()) return;
 
         event.setCancelled(true);
         manager.openMenu(player);
