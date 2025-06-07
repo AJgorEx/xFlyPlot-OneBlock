@@ -31,6 +31,7 @@ public class OneBlockManager {
     private final Sound soundBonus;
     private boolean bonusDropsEnabled = true;
     private final int levelBlocks;
+    private final double borderSize;
     private final MessageManager messages;
     private final Set<UUID> pausedPlayers = new HashSet<>();
 
@@ -47,6 +48,7 @@ public class OneBlockManager {
         this.soundDelete = Sound.valueOf(cfg.getString("sounds.island-delete", "ENTITY_WITHER_DEATH"));
         this.soundBonus = Sound.valueOf(cfg.getString("sounds.bonus", "ENTITY_EXPERIENCE_ORB_PICKUP"));
         this.levelBlocks = cfg.getInt("level-blocks", 100);
+        this.borderSize = cfg.getDouble("island-border-size", 64);
 
         if (!phasesFile.exists()) {
             plugin.saveResource("phases.yml", false);
@@ -75,6 +77,11 @@ public class OneBlockManager {
 
         if (home != null) {
             player.teleport(home.clone().add(0.5, 1, 0.5));
+            // ensure border is visible when player returns
+            WorldBorder border = home.getWorld().getWorldBorder();
+            border.setCenter(0.5, 0.5);
+            border.setSize(borderSize);
+
             messages.send(player, "teleport_home");
             player.playSound(player.getLocation(), soundTeleport, 1f, 1f);
         } else {
@@ -89,6 +96,11 @@ public class OneBlockManager {
                 .generator(new VoidChunkGenerator())
                 .environment(World.Environment.NORMAL)
                 .type(WorldType.FLAT));
+
+        // set up a visible world border for the island
+        WorldBorder border = world.getWorldBorder();
+        border.setCenter(0.5, 0.5);
+        border.setSize(borderSize);
 
         Location genLoc = new Location(world, 0, 64, 0);
 
