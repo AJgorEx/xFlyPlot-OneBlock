@@ -26,6 +26,8 @@ public class OneBlockManager {
     private final Sound soundPhaseComplete;
     private final Sound soundDelete;
     private final Sound soundBonus;
+    private boolean bonusDropsEnabled = true;
+    private final Set<UUID> pausedPlayers = new HashSet<>();
 
     public OneBlockManager(Plugin plugin) {
         this.plugin = plugin;
@@ -94,6 +96,10 @@ public class OneBlockManager {
         UUID uuid = player.getUniqueId();
 
         if (!playerGenerators.containsKey(uuid)) return;
+        if (pausedPlayers.contains(uuid)) {
+            player.sendMessage(ChatColor.RED + "Twoja wyspa jest wstrzymana.");
+            return;
+        }
 
         int total = playerProgress.getOrDefault(uuid, 0);
         Phase currentPhase = getCurrentPhase(total);
@@ -197,6 +203,7 @@ public class OneBlockManager {
     }
 
     private void maybeDropBonus(Player player, Location loc) {
+        if (!bonusDropsEnabled) return;
         if (Math.random() < 0.05) {
             loc.getWorld().dropItemNaturally(loc.clone().add(0.5, 1, 0.5), new org.bukkit.inventory.ItemStack(Material.DIAMOND));
             player.sendMessage(ChatColor.GOLD + "Bonusowy diament!");
@@ -339,5 +346,82 @@ public class OneBlockManager {
             player.sendMessage(ChatColor.GRAY + "- " + ChatColor.GOLD + phase.getName()
                     + ChatColor.GRAY + " (" + phase.getBlockCount() + ")");
         }
+    }
+
+    // --- Additional innovative functions ---
+
+    public boolean hasIsland(UUID uuid) {
+        return playerGenerators.containsKey(uuid);
+    }
+
+    public World getPlayerWorld(UUID uuid) {
+        Location loc = playerGenerators.get(uuid);
+        return loc != null ? loc.getWorld() : null;
+    }
+
+    public void pauseIsland(UUID uuid) {
+        pausedPlayers.add(uuid);
+    }
+
+    public void resumeIsland(UUID uuid) {
+        pausedPlayers.remove(uuid);
+    }
+
+    public void toggleBonusDrops(boolean enabled) {
+        this.bonusDropsEnabled = enabled;
+    }
+
+    public boolean isBonusDropsEnabled() {
+        return bonusDropsEnabled;
+    }
+
+    public void broadcastStart(Player player) {
+        String msg = ChatColor.GREEN + player.getName() + " rozpocz\u0105\u0142 swoj\u0105 przygod\u0119 z OneBlock!";
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            p.sendMessage(msg);
+        }
+    }
+
+    public Location getIslandLocation(Player player) {
+        return playerGenerators.get(player.getUniqueId());
+    }
+
+    public List<UUID> listPlayersWithIslands() {
+        return new ArrayList<>(playerGenerators.keySet());
+    }
+
+    public void resetPlayerProgress(UUID uuid) {
+        playerProgress.put(uuid, 0);
+    }
+
+    public void setPlayerProgress(UUID uuid, int progress) {
+        playerProgress.put(uuid, progress);
+    }
+
+    public BossBar getBossBar(Player player) {
+        return playerBossbars.get(player.getUniqueId());
+    }
+
+    public void toggleBossbar(Player player) {
+        BossBar bar = playerBossbars.get(player.getUniqueId());
+        if (bar != null) {
+            bar.setVisible(!bar.isVisible());
+        }
+    }
+
+    public void deleteAllIslands() {
+        for (UUID uuid : new HashSet<>(playerGenerators.keySet())) {
+            Location loc = playerGenerators.get(uuid);
+            if (loc != null) {
+                World world = loc.getWorld();
+                removePlayer(uuid);
+                Bukkit.unloadWorld(world, false);
+                deleteWorldFolder(world.getWorldFolder());
+            }
+        }
+    }
+
+    public void addPhase(Phase phase) {
+        phases.add(phase);
     }
 }
