@@ -21,3 +21,7 @@ block-points:
   diamond_block: 5
   gold_block: 3
   iron_block: 2
+
+upgrade:
+  cost: 500
+  increment: 16

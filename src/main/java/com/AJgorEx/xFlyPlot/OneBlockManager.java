@@ -21,6 +21,7 @@ public class OneBlockManager {
     private final Map<UUID, Integer> playerProgress = new HashMap<>();
     private final Map<UUID, BossBar> playerBossbars = new HashMap<>();
     private final Map<UUID, Integer> islandPoints = new HashMap<>();
+    private final Map<UUID, Integer> islandUpgrades = new HashMap<>();
     private final Map<UUID, Long> sessionStart = new HashMap<>();
     private final Map<UUID, Long> totalSessionTime = new HashMap<>();
     private final List<Phase> phases = new ArrayList<>();
@@ -34,6 +35,8 @@ public class OneBlockManager {
     private boolean bonusDropsEnabled = true;
     private final int levelBlocks;
     private final double borderSize;
+    private final int upgradeCost;
+    private final double upgradeIncrement;
     private final MessageManager messages;
     private final Set<UUID> pausedPlayers = new HashSet<>();
     private final Map<Material, Integer> blockPointValues = new HashMap<>();
@@ -53,6 +56,8 @@ public class OneBlockManager {
         this.soundBonus = Sound.valueOf(cfg.getString("sounds.bonus", "ENTITY_EXPERIENCE_ORB_PICKUP"));
         this.levelBlocks = cfg.getInt("level-blocks", 100);
         this.borderSize = cfg.getDouble("island-border-size", 64);
+        this.upgradeCost = cfg.getInt("upgrade.cost", 500);
+        this.upgradeIncrement = cfg.getDouble("upgrade.increment", 16);
 
         if (cfg.isConfigurationSection("block-points")) {
             var section = cfg.getConfigurationSection("block-points");
@@ -73,6 +78,7 @@ public class OneBlockManager {
 
         loadPhases();
         loadSessions();
+        loadUpgrades();
         saveServerInfo();
     }
 
@@ -283,7 +289,8 @@ public class OneBlockManager {
         inv.setItem(2, createItem(Material.EXPERIENCE_BOTTLE, ChatColor.AQUA + "Progress"));
         inv.setItem(3, createItem(Material.PAPER, ChatColor.AQUA + "Level"));
         inv.setItem(4, createItem(Material.BOOK, ChatColor.AQUA + "Phases"));
-        inv.setItem(5, createItem(Material.BARRIER, ChatColor.RED + "Delete"));
+        inv.setItem(5, createItem(Material.NETHER_STAR, ChatColor.GREEN + "Upgrade"));
+        inv.setItem(6, createItem(Material.BARRIER, ChatColor.RED + "Delete"));
         player.openInventory(inv);
     }
 
@@ -314,6 +321,7 @@ public class OneBlockManager {
         playerGenerators.remove(uuid);
         playerProgress.remove(uuid);
         islandPoints.remove(uuid);
+        islandUpgrades.remove(uuid);
         endSession(uuid);
         BossBar bar = playerBossbars.remove(uuid);
         if (bar != null) {
@@ -511,6 +519,28 @@ public class OneBlockManager {
         return (getIslandPoints(uuid) / levelBlocks) + 1;
     }
 
+    public void upgradeIsland(Player player) {
+        UUID uuid = player.getUniqueId();
+        if (!playerGenerators.containsKey(uuid)) {
+            messages.send(player, "no_island");
+            return;
+        }
+        int points = getIslandPoints(uuid);
+        if (points < upgradeCost) {
+            String msg = messages.get("upgrade_not_enough").replace("%cost%", String.valueOf(upgradeCost));
+            player.sendMessage(msg);
+            return;
+        }
+        islandPoints.put(uuid, points - upgradeCost);
+        int lvl = islandUpgrades.getOrDefault(uuid, 0) + 1;
+        islandUpgrades.put(uuid, lvl);
+        WorldBorder border = playerGenerators.get(uuid).getWorld().getWorldBorder();
+        border.setSize(border.getSize() + upgradeIncrement);
+        player.sendMessage(messages.get("upgrade_success"));
+        saveUpgrades();
+        saveStats();
+    }
+
     private void saveStats() {
         File file = new File(plugin.getDataFolder(), "stats.json");
         try (FileWriter writer = new FileWriter(file)) {
@@ -545,6 +575,19 @@ public class OneBlockManager {
         saveServerInfo();
     }
 
+    private void saveUpgrades() {
+        File file = new File(plugin.getDataFolder(), "upgrades.yml");
+        YamlConfiguration cfg = new YamlConfiguration();
+        for (UUID id : islandUpgrades.keySet()) {
+            cfg.set(id.toString(), islandUpgrades.get(id));
+        }
+        try {
+            cfg.save(file);
+        } catch (IOException e) {
+            plugin.getLogger().warning("Failed to save upgrades: " + e.getMessage());
+        }
+    }
+
     private void saveServerInfo() {
         File file = new File(plugin.getDataFolder(), "server.json");
         try (FileWriter writer = new FileWriter(file)) {
@@ -565,6 +608,20 @@ public class OneBlockManager {
                 totalSessionTime.put(id, cfg.getLong(key));
             } catch (IllegalArgumentException ignored) {
                 plugin.getLogger().warning("Invalid UUID in sessions.yml: " + key);
+            }
+        }
+    }
+
+    private void loadUpgrades() {
+        File file = new File(plugin.getDataFolder(), "upgrades.yml");
+        if (!file.exists()) return;
+        YamlConfiguration cfg = YamlConfiguration.loadConfiguration(file);
+        for (String key : cfg.getKeys(false)) {
+            try {
+                UUID id = UUID.fromString(key);
+                islandUpgrades.put(id, cfg.getInt(key));
+            } catch (IllegalArgumentException ignored) {
+                plugin.getLogger().warning("Invalid UUID in upgrades.yml: " + key);
             }
         }
     }

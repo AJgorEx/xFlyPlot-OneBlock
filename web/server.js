@@ -7,8 +7,11 @@ const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
-const dataFile = path.join(__dirname, '../build/resources/main/stats.json');
-const infoFile = path.join(__dirname, '../build/resources/main/server.json');
+// Allow overriding plugin data directory via environment variable
+const pluginData = process.env.PLUGIN_DATA ||
+  path.join(__dirname, '../plugins/xFlyPlot');
+const dataFile = path.join(pluginData, 'stats.json');
+const infoFile = path.join(pluginData, 'server.json');
 
 app.use(express.static(path.join(__dirname, 'public')));
 
