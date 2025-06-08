@@ -30,6 +30,7 @@ public class MenuListener implements Listener {
             case EXPERIENCE_BOTTLE -> manager.sendProgress(player);
             case PAPER -> manager.sendLevel(player);
             case BOOK -> manager.listPhases(player);
+            case NETHER_STAR -> manager.upgradeIsland(player);
             case BARRIER -> manager.deleteIsland(player);
         }
 

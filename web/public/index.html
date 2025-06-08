@@ -4,69 +4,55 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OneBlock Dashboard</title>
-<style>
- body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:linear-gradient(120deg,#1d1f20,#151515);color:#fff;}
- .container{max-width:900px;margin:auto;padding:20px;}
- .card{background:rgba(255,255,255,0.1);backdrop-filter:blur(8px);border-radius:8px;padding:20px;margin-bottom:20px;}
- h1{text-align:center;margin-top:0;font-size:2rem;}
- table{width:100%;border-collapse:collapse;margin-top:10px;}
- th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);}
- #server{margin-top:10px;font-size:14px;}
- #last-update{font-size:12px;text-align:right;margin-top:5px;color:#ccc;}
- canvas{max-width:100%;height:200px;}
-</style>
-</head>
-<body>
-<div class="container">
-  <div class="card" id="info">
-    <h1>OneBlock Leaderboard</h1>
-    <canvas id="chart"></canvas>
-    <table id="board">
-      <thead><tr><th>Player</th><th>Level</th><th>Points</th></tr></thead>
-      <tbody></tbody>
-    </table>
-    <div id="server"></div>
-    <div id="last-update"></div>
-  </div>
-</div>
-<script src="/socket.io/socket.io.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.4/dist/tailwind.min.css"/>
+<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-let chart;
-function updateBoard(data){
-  const tbody=document.querySelector('#board tbody');
-  tbody.innerHTML='';
-  data.sort((a,b)=>b.points-a.points);
-  data.forEach(e=>{
-    const row=document.createElement('tr');
-    const avatar=`<img src="https://crafatar.com/avatars/${e.uuid}?size=32" style="vertical-align:middle;border-radius:4px;margin-right:5px">`;
-    row.innerHTML=`<td>${avatar}${e.name}</td><td>${e.level}</td><td>${e.points}</td>`;
-    tbody.appendChild(row);
-  });
-  updateChart(data);
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-gray-900 text-white">
+<div id="root" class="max-w-3xl mx-auto p-4"></div>
+<script type="text/babel">
+function Dashboard(){
+  const [stats,setStats]=React.useState([]);
+  const [server,setServer]=React.useState({});
+  const chartRef=React.useRef(null);
+  const chartInst=React.useRef(null);
+  React.useEffect(()=>{const s=io();s.on('update',d=>{setStats(d.stats);setServer(d.server);});},[]);
+  React.useEffect(()=>{
+    if(!chartRef.current) return;
+    const labels=stats.slice(0,5).map(e=>e.name);
+    const pts=stats.slice(0,5).map(e=>e.points);
+    if(!chartInst.current){
+      chartInst.current=new Chart(chartRef.current.getContext('2d'),{type:'bar',data:{labels,datasets:[{label:'Points',data:pts,backgroundColor:'rgba(59,130,246,0.5)',borderColor:'rgba(59,130,246,1)',borderWidth:1}]},options:{scales:{y:{beginAtZero:true}}}});
+    }else{
+      chartInst.current.data.labels=labels;
+      chartInst.current.data.datasets[0].data=pts;
+      chartInst.current.update();
+    }
+  },[stats]);
+  return (
+    <div className="space-y-4">
+      <h1 className="text-3xl font-bold text-center">OneBlock Leaderboard</h1>
+      <canvas ref={chartRef} className="w-full h-48"></canvas>
+      <table className="w-full text-left border-collapse">
+        <thead><tr><th>Player</th><th>Level</th><th>Points</th></tr></thead>
+        <tbody>
+          {stats.sort((a,b)=>b.points-a.points).map(p=>(
+            <tr key={p.uuid} className="border-b border-gray-700">
+              <td className="py-1"><img src={`https://crafatar.com/avatars/${p.uuid}?size=32`} className="inline-block mr-1 rounded"/>{p.name}</td>
+              <td className="py-1">{p.level}</td>
+              <td className="py-1">{p.points}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="text-sm">Online: {server.online ?? 0} | Islands: {server.islands ?? 0} | Version: {server.version ?? ''}</div>
+    </div>
+  );
 }
-function updateChart(data){
-  const ctx=document.getElementById('chart').getContext('2d');
-  const labels=data.slice(0,5).map(e=>e.name);
-  const points=data.slice(0,5).map(e=>e.points);
-  if(!chart){
-    chart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'Points',data:points,backgroundColor:'rgba(75,192,192,0.5)',borderColor:'rgba(75,192,192,1)',borderWidth:1}]},options:{scales:{y:{beginAtZero:true}}}});
-  }else{
-    chart.data.labels=labels;
-    chart.data.datasets[0].data=points;
-    chart.update();
-  }
-}
-function updateServer(data){
-  const div=document.getElementById('server');
-  if(!data) return;
-  div.textContent=`Online: ${data.online} | Islands: ${data.islands} | Version: ${data.version}`;
-}
-function showTime(){
-  document.getElementById('last-update').textContent='Last update: '+new Date().toLocaleTimeString();
-}
-const socket=io();
-socket.on('update',d=>{updateBoard(d.stats);updateServer(d.server);showTime();});
+ReactDOM.createRoot(document.getElementById('root')).render(<Dashboard/>);
 </script>
 </body>
 </html>
